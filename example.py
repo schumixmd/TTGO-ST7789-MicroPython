@@ -1,20 +1,21 @@
 
+    # code for micropython 1.10 on esp8266
 import random
 import st7789
 import time
 from machine import Pin, SPI
 
-BL_Pin = 4     #Backlight pin
-SCLK_Pin = 18  #Clock
-MOSI_Pin = 19  #MOSI
-MISO_Pin = 2   #MISO
-RESET_Pin = 23 #RESET
-DC_Pin = 16    #Data/Command Select
-CS_Pin = 5     #Chip Select
+BL_Pin = 4
+SCLK_Pin = 18
+MOSI_Pin = 19
+MISO_Pin = 2
+RESET_Pin = 23
+DC_Pin = 16
+CS_Pin = 5
 
-Button1_Pin = 35 #Right button
-Button2_Pin = 0  #Left button
-button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP)
+Button1_Pin = 35;
+Button2_Pin = 0;
+button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP )
 button2 = Pin(Button2_Pin, Pin.IN, Pin.PULL_UP)
 
 BLK = Pin(BL_Pin, Pin.OUT)
@@ -34,17 +35,29 @@ def fill_random_color():
     )
 
 def fill_hline():
+    display._set_mem_access_mode(2, False, False, True)
     for i in range(0,240):
-      display.hline(0, i, 135, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.hline(0, i, 100, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+
+    display._set_mem_access_mode(3, False, False, True)
+    for i in range(0,240):
+      display.hline(0, i, 100, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
 
 def fill_vline():
+    display._set_mem_access_mode(0, False, False, True)
     for i in range(0,135):
-      display.vline(i, 0, 240, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.vline(i, 0, 200, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+
+    display._set_mem_access_mode(1, False, False, True)
+    for i in range(0,135):
+      display.vline(i, 0, 200, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+
 
 def main():
 
     BLK.value(1) #turn backlight on
-    display.fill(st7789.BLACK) #clear screen by filling all black
+    display.fill(st7789.BLACK)
+    display._set_mem_access_mode(0, False, False, True)
 
     while True:
      if not button1.value():
@@ -68,5 +81,3 @@ def main():
      ))
 
      #display.rect(50, 50, 50, 50, st7789.WHITE)
-
-    
