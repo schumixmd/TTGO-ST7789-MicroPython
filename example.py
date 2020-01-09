@@ -1,21 +1,20 @@
 
-    # code for micropython 1.10 on esp8266
 import random
 import st7789
 import time
 from machine import Pin, SPI
 
-BL_Pin = 4
-SCLK_Pin = 18
-MOSI_Pin = 19
-MISO_Pin = 2
-RESET_Pin = 23
-DC_Pin = 16
-CS_Pin = 5
+BL_Pin = 4     #backlight pin
+SCLK_Pin = 18  #clock pin
+MOSI_Pin = 19  #mosi pin
+MISO_Pin = 2   #miso pin
+RESET_Pin = 23 #reset pin
+DC_Pin = 16    #data/command pin
+CS_Pin = 5     #chip select pin
 
-Button1_Pin = 35;
-Button2_Pin = 0;
-button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP )
+Button1_Pin = 35; #right button
+Button2_Pin = 0;  #left button
+button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP)
 button2 = Pin(Button2_Pin, Pin.IN, Pin.PULL_UP)
 
 BLK = Pin(BL_Pin, Pin.OUT)
@@ -35,29 +34,36 @@ def fill_random_color():
     )
 
 def fill_hline():
-    display._set_mem_access_mode(2, False, False, True)
+    display._set_mem_access_mode(0, False, False, False)
     for i in range(0,240):
-      display.hline(0, i, 100, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.hline(0, i, 65, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
 
-    display._set_mem_access_mode(3, False, False, True)
+    display._set_mem_access_mode(1, False, False, False)
     for i in range(0,240):
-      display.hline(0, i, 100, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.hline(0, i, 65, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+
+    clear_screen()
 
 def fill_vline():
-    display._set_mem_access_mode(0, False, False, True)
+    display._set_mem_access_mode(0, False, False, False)
     for i in range(0,135):
-      display.vline(i, 0, 200, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.vline(i, 0, 110, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
 
-    display._set_mem_access_mode(1, False, False, True)
+    display._set_mem_access_mode(2, False, False, False)
     for i in range(0,135):
-      display.vline(i, 0, 200, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
+      display.vline(i, 0, 110, st7789.color565(random.getrandbits(8),random.getrandbits(8),random.getrandbits(8)))
 
+
+
+
+    clear_screen()
 
 def main():
 
     BLK.value(1) #turn backlight on
-    display.fill(st7789.BLACK)
-    display._set_mem_access_mode(0, False, False, True)
+    display._set_mem_access_mode(0, False, False, True) #setting screen orientation (rotation (0-7), vertical mirror, horizonatal mirror, is bgr)
+    clear_screen() #clear screen by filling black rectangle (slow)
+
 
     while True:
      if not button1.value():
