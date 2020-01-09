@@ -6,6 +6,8 @@ The driver is a draft and mix of code from following repositories:
   https://github.com/devbis/st7789py_mpy
   https://github.com/lewisxhe/mPython_ST7789
   
+The display size is 135x240 pixels
+
 The driver doesn't draw text or pictures, only few primitives:
     - rectangle
     - filled rectange
