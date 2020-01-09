@@ -1,21 +1,20 @@
 
-    # code for micropython 1.10 on esp8266
 import random
 import st7789
 import time
 from machine import Pin, SPI
 
-BL_Pin = 4
-SCLK_Pin = 18
-MOSI_Pin = 19
-MISO_Pin = 2
-RESET_Pin = 23
-DC_Pin = 16
-CS_Pin = 5
+BL_Pin = 4     #Backlight pin
+SCLK_Pin = 18  #Clock
+MOSI_Pin = 19  #MOSI
+MISO_Pin = 2   #MISO
+RESET_Pin = 23 #RESET
+DC_Pin = 16    #Data/Command Select
+CS_Pin = 5     #Chip Select
 
-Button1_Pin = 35;
-Button2_Pin = 0;
-button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP )
+Button1_Pin = 35 #Right button
+Button2_Pin = 0  #Left button
+button1 = Pin(Button1_Pin, Pin.IN, Pin.PULL_UP)
 button2 = Pin(Button2_Pin, Pin.IN, Pin.PULL_UP)
 
 BLK = Pin(BL_Pin, Pin.OUT)
@@ -45,7 +44,7 @@ def fill_vline():
 def main():
 
     BLK.value(1) #turn backlight on
-    display.fill(st7789.BLACK)
+    display.fill(st7789.BLACK) #clear screen by filling all black
 
     while True:
      if not button1.value():
