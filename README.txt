@@ -5,6 +5,7 @@ I have not found any library that will work with this Chinese clone DevBoard plu
 The driver is a draft and mix of code from following repositories: 
   https://github.com/devbis/st7789py_mpy
   https://github.com/lewisxhe/mPython_ST7789
+  https://github.com/rdagger/micropython-ssd1351
   
 The display size is 135x240 pixels
 
