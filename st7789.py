@@ -3,7 +3,7 @@ import ustruct as struct
 import framebuf
 from micropython import const
 from machine import SPI
-
+from math import cos, sin, pi, radians
 
 TFT_RAMWR = const(0x2C)
 TFT_SWRST = const(0x01)
@@ -28,6 +28,7 @@ ST7789_CASET = const(0x2A)
 ST7789_RASET = const(0x2B)
 ST7789_DISPON = const(0x29)
 ST7789_DISPOFF = const(0x28)
+SET_REMAP = const(0xA0)
 
 
 # commands
@@ -342,8 +343,20 @@ class ST7789(object):
         self.write(ST7789_DISPON)  # Display on
         time.sleep_ms(120)
 
+    def cleanup(self):
+        """Clean up resources."""
+        self.fill(0)
+        self.display_off()
+        self.spi.deinit()
+        print('display off')
 
+    def display_off(self):
+        """Turn display off."""
+        self.write(ST7789_DISPOFF)
 
+    def display_on(self):
+        """Turn display on."""
+        self.write(ST7789_DISPON)
 
     def _set_mem_access_mode(self, rotation, vert_mirror, horz_mirror, is_bgr):
         rotation &= 7
@@ -415,6 +428,105 @@ class ST7789(object):
         self._set_rows(y0, y1)
         self.write(ST77XX_RAMWR, data)
 
+    def is_off_grid(self, xmin, ymin, xmax, ymax):
+        """Check if coordinates extend past display boundaries.
+
+        Args:
+            xmin (int): Minimum horizontal pixel.
+            ymin (int): Minimum vertical pixel.
+            xmax (int): Maximum horizontal pixel.
+            ymax (int): Maximum vertical pixel.
+        Returns:
+            boolean: False = Coordinates OK, True = Error.
+        """
+        if xmin < 0:
+            print('x-coordinate: {0} below minimum of 0.'.format(xmin))
+            return True
+        if ymin < 0:
+            print('y-coordinate: {0} below minimum of 0.'.format(ymin))
+            return True
+        if xmax >= self.width:
+            print('x-coordinate: {0} above maximum of {1}.'.format(
+                xmax, self.width - 1))
+            return True
+        if ymax >= self.height:
+            print('y-coordinate: {0} above maximum of {1}.'.format(
+                ymax, self.height - 1))
+            return True
+        return False
+
+
+    def draw_letter(self, x, y, letter, font, color, background=0,
+                    landscape=False):
+        """Draw a letter.
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            letter (string): Letter to draw.
+            font (XglcdFont object): Font.
+            color (int): RGB565 color value.
+            background (int): RGB565 background color (default: black).
+            landscape (bool): Orientation (default: False = portrait)
+        """
+        buf, w, h = font.get_letter(letter, color, background,
+                                    landscape)
+        # Check for errors
+        if w == 0:
+            return w, h
+
+        if landscape:
+            y -= w
+            if self.is_off_grid(x, y, x + h - 1, y + w - 1):
+                return
+            self.set_window(x, y,
+                       x + h - 1, y + w - 1,
+                       buf)
+        else:
+            if self.is_off_grid(x, y, x + w - 1, y + h - 1):
+                return
+
+            self.set_window(y, x,
+                       y + h - 1,  x + w - 1,
+                       buf)
+
+        return w, h
+
+    def draw_text(self, x, y, text, font, color,  background=0,
+                  landscape=False, spacing=1):
+        """Draw text.
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            text (string): Text to draw.
+            font (XglcdFont object): Font.
+            color (int): RGB565 color value.
+            background (int): RGB565 background color (default: black).
+            landscape (bool): Orientation (default: False = portrait)
+            spacing (int): Pixels between letters (default: 1)
+        """
+        for letter in text:
+            # Get letter array and letter dimensions
+            w, h = self.draw_letter(x, y, letter, font, color, background,
+                                    landscape)
+            # Stop on error
+            if w == 0 or h == 0:
+                print('Invalid width {0} or height {1}'.format(w, h))
+                return
+
+            if landscape:
+                # Fill in spacing
+                if spacing:
+                    self.fill_hrect(x, y - w - spacing, h, spacing, background)
+                # Position y for next letter
+                y -= (w + spacing)
+            else:
+                # Fill in spacing
+                if spacing:
+                    self.fill_vrect(x + w, y, spacing, h, background)
+                # Position x for next letter
+                x += w + spacing
 
     def fill_rect(self, x, y, width, height, color):
         if color:
@@ -436,6 +548,8 @@ class ST7789(object):
             mv = memoryview(self._buf)
             self._data(mv[:rest*2])
 
+    def clear(self):
+        self.fill(0)
 
     def fill(self, color):
         self.fill_rect(0, 0, self.width, self.height, color)
@@ -468,3 +582,456 @@ class ST7789(object):
                 y0 += ystep
                 err += dx
             x0 += 1
+
+    def lines(self, coords, color):
+        """Draw multiple lines.
+
+        Args:
+            coords ([[int, int],...]): Line coordinate X, Y pairs
+            color (int): RGB565 color value.
+        """
+        # Starting point
+        x1, y1 = coords[0]
+        # Iterate through coordinates
+        for i in range(1, len(coords)):
+            x2, y2 = coords[i]
+            self.line(x1, y1, x2, y2, color)
+            x1, y1 = x2, y2
+
+    def circle(self, x0, y0, r, color):
+        """Draw a circle.
+        Args:
+            x0 (int): X coordinate of center point.
+            y0 (int): Y coordinate of center point.
+            r (int): Radius.
+            color (int): RGB565 color value.
+        """
+        f = 1 - r
+        dx = 1
+        dy = -r - r
+        x = 0
+        y = r
+        self.pixel(x0, y0 + r, color)
+        self.pixel(x0, y0 - r, color)
+        self.pixel(x0 + r, y0, color)
+        self.pixel(x0 - r, y0, color)
+        while x < y:
+            if f >= 0:
+                y -= 1
+                dy += 2
+                f += dy
+            x += 1
+            dx += 2
+            f += dx
+            self.pixel(x0 + x, y0 + y, color)
+            self.pixel(x0 - x, y0 + y, color)
+            self.pixel(x0 + x, y0 - y, color)
+            self.pixel(x0 - x, y0 - y, color)
+            self.pixel(x0 + y, y0 + x, color)
+            self.pixel(x0 - y, y0 + x, color)
+            self.pixel(x0 + y, y0 - x, color)
+            self.pixel(x0 - y, y0 - x, color)
+
+    def ellipse(self, x0, y0, a, b, color):
+        """Draw an ellipse.
+        Args:
+            x0, y0 (int): Coordinates of center point.
+            a (int): Semi axis horizontal.
+            b (int): Semi axis vertical.
+            color (int): RGB565 color value.
+        Note:
+            The center point is the center of the x0,y0 pixel.
+            Since pixels are not divisible, the axes are integer rounded
+            up to complete on a full pixel.  Therefore the major and
+            minor axes are increased by 1.
+        """
+        a2 = a * a
+        b2 = b * b
+        twoa2 = a2 + a2
+        twob2 = b2 + b2
+        x = 0
+        y = b
+        px = 0
+        py = twoa2 * y
+        # Plot initial points
+        self.pixel(x0 + x, y0 + y, color)
+        self.pixel(x0 - x, y0 + y, color)
+        self.pixel(x0 + x, y0 - y, color)
+        self.pixel(x0 - x, y0 - y, color)
+        # Region 1
+        p = round(b2 - (a2 * b) + (0.25 * a2))
+        while px < py:
+            x += 1
+            px += twob2
+            if p < 0:
+                p += b2 + px
+            else:
+                y -= 1
+                py -= twoa2
+                p += b2 + px - py
+            self.pixel(x0 + x, y0 + y, color)
+            self.pixel(x0 - x, y0 + y, color)
+            self.pixel(x0 + x, y0 - y, color)
+            self.pixel(x0 - x, y0 - y, color)
+        # Region 2
+        p = round(b2 * (x + 0.5) * (x + 0.5) +
+                  a2 * (y - 1) * (y - 1) - a2 * b2)
+        while y > 0:
+            y -= 1
+            py -= twoa2
+            if p > 0:
+                p += a2 - py
+            else:
+                x += 1
+                px += twob2
+                p += a2 - py + px
+            self.pixel(x0 + x, y0 + y, color)
+            self.pixel(x0 - x, y0 + y, color)
+            self.pixel(x0 + x, y0 - y, color)
+            self.pixel(x0 - x, y0 - y, color)
+
+
+    def rectangle(self, x, y, w, h, color):
+        """Draw a rectangle.
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            w (int): Width of rectangle.
+            h (int): Height of rectangle.
+            color (int): RGB565 color value.
+        """
+        x2 = x + w - 1
+        y2 = y + h - 1
+        self.hline(x, y, w, color)
+        self.hline(x, y2, w, color)
+        self.vline(x, y, h, color)
+        self.vline(x2, y, h, color)
+
+    def polygon(self, sides, x0, y0, r, color, rotate=0):
+        """Draw an n-sided regular polygon.
+
+        Args:
+            sides (int): Number of polygon sides.
+            x0, y0 (int): Coordinates of center point.
+            r (int): Radius.
+            color (int): RGB565 color value.
+            rotate (Optional float): Rotation in degrees relative to origin.
+        Note:
+            The center point is the center of the x0,y0 pixel.
+            Since pixels are not divisible, the radius is integer rounded
+            up to complete on a full pixel.  Therefore diameter = 2 x r + 1.
+        """
+        coords = []
+        theta = radians(rotate)
+        n = sides + 1
+        for s in range(n):
+            t = 2.0 * pi * s / sides + theta
+            coords.append([int(r * cos(t) + x0), int(r * sin(t) + y0)])
+
+        # Cast to python float first to fix rounding errors
+        self.lines(coords, color=color)
+
+    def fill_rectangle(self, x, y, w, h, color):
+        """Draw a filled rectangle.
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            w (int): Width of rectangle.
+            h (int): Height of rectangle.
+            color (int): RGB565 color value.
+        """
+        if self.is_off_grid(x, y, x + w - 1, y + h - 1):
+            return
+        if w > h:
+            self.fill_hrect(x, y, w, h, color)
+        else:
+            self.fill_vrect(x, y, w, h, color)
+
+    def fill_circle(self, x0, y0, r, color):
+        """Draw a filled circle.
+
+        Args:
+            x0 (int): X coordinate of center point.
+            y0 (int): Y coordinate of center point.
+            r (int): Radius.
+            color (int): RGB565 color value.
+        """
+        f = 1 - r
+        dx = 1
+        dy = -r - r
+        x = 0
+        y = r
+        self.vline(x0, y0 - r, 2 * r + 1, color)
+        while x < y:
+            if f >= 0:
+                y -= 1
+                dy += 2
+                f += dy
+            x += 1
+            dx += 2
+            f += dx
+            self.vline(x0 + x, y0 - y, 2 * y + 1, color)
+            self.vline(x0 - x, y0 - y, 2 * y + 1, color)
+            self.vline(x0 - y, y0 - x, 2 * x + 1, color)
+            self.vline(x0 + y, y0 - x, 2 * x + 1, color)
+
+
+    def fill_polygon(self, sides, x0, y0, r, color, rotate=0):
+        """Draw a filled n-sided regular polygon.
+
+        Args:
+            sides (int): Number of polygon sides.
+            x0, y0 (int): Coordinates of center point.
+            r (int): Radius.
+            color (int): RGB565 color value.
+            rotate (Optional float): Rotation in degrees relative to origin.
+        Note:
+            The center point is the center of the x0,y0 pixel.
+            Since pixels are not divisible, the radius is integer rounded
+            up to complete on a full pixel.  Therefore diameter = 2 x r + 1.
+        """
+        # Determine side coordinates
+        coords = []
+        theta = radians(rotate)
+        n = sides + 1
+        for s in range(n):
+            t = 2.0 * pi * s / sides + theta
+            coords.append([int(r * cos(t) + x0), int(r * sin(t) + y0)])
+        # Starting point
+        x1, y1 = coords[0]
+        # Minimum Maximum X dict
+        xdict = {y1: [x1, x1]}
+        # Iterate through coordinates
+        for row in coords[1:]:
+            x2, y2 = row
+            xprev, yprev = x2, y2
+            # Calculate perimeter
+            # Check for horizontal side
+            if y1 == y2:
+                if x1 > x2:
+                    x1, x2 = x2, x1
+                if y1 in xdict:
+                    xdict[y1] = [min(x1, xdict[y1][0]), max(x2, xdict[y1][1])]
+                else:
+                    xdict[y1] = [x1, x2]
+                x1, y1 = xprev, yprev
+                continue
+            # Non horizontal side
+            # Changes in x, y
+            dx = x2 - x1
+            dy = y2 - y1
+            # Determine how steep the line is
+            is_steep = abs(dy) > abs(dx)
+            # Rotate line
+            if is_steep:
+                x1, y1 = y1, x1
+                x2, y2 = y2, x2
+            # Swap start and end points if necessary
+            if x1 > x2:
+                x1, x2 = x2, x1
+                y1, y2 = y2, y1
+            # Recalculate differentials
+            dx = x2 - x1
+            dy = y2 - y1
+            # Calculate error
+            error = dx >> 1
+            ystep = 1 if y1 < y2 else -1
+            y = y1
+            # Calcualte minimum and maximum x values
+            for x in range(x1, x2 + 1):
+                if is_steep:
+                    if x in xdict:
+                        xdict[x] = [min(y, xdict[x][0]), max(y, xdict[x][1])]
+                    else:
+                        xdict[x] = [y, y]
+                else:
+                    if y in xdict:
+                        xdict[y] = [min(x, xdict[y][0]), max(x, xdict[y][1])]
+                    else:
+                        xdict[y] = [x, x]
+                error -= abs(dy)
+                if error < 0:
+                    y += ystep
+                    error += dx
+            x1, y1 = xprev, yprev
+        # Fill polygon
+        for y, x in xdict.items():
+            self.hline(x[0], y, x[1] - x[0] + 2, color)
+
+    def fill_vrect(self, x, y, w, h, color):
+        """Draw a filled rectangle (optimized for vertical drawing).
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            w (int): Width of rectangle.
+            h (int): Height of rectangle.
+            color (int): RGB565 color value.
+        """
+        if self.is_off_grid(x, y, x + w - 1, y + h - 1):
+            return
+        chunk_width = 1024 // h
+        chunk_count, remainder = divmod(w, chunk_width)
+        chunk_size = chunk_width * h
+        chunk_x = x
+        if chunk_count:
+            buf = color.to_bytes(2, 'big') * chunk_size
+            for c in range(0, chunk_count):
+                self.set_window(chunk_x, y,
+                           chunk_x + chunk_width - 1, y + h - 1,
+                           buf)
+                chunk_x += chunk_width
+
+        if remainder:
+            buf = color.to_bytes(2, 'big') * remainder * h
+            self.set_window(chunk_x, y,
+                       chunk_x + remainder - 1, y + h - 1,
+                       buf)
+
+    def fill_hrect(self, x, y, w, h, color):
+        """Draw a filled rectangle (optimized for horizontal drawing).
+
+        Args:
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            w (int): Width of rectangle.
+            h (int): Height of rectangle.
+            color (int): RGB565 color value.
+        """
+        if self.is_off_grid(x, y, x + w - 1, y + h - 1):
+            return
+        chunk_height = 1024 // w
+        chunk_count, remainder = divmod(h, chunk_height)
+        chunk_size = chunk_height * w
+        chunk_y = y
+        if chunk_count:
+            buf = color.to_bytes(2, 'big') * chunk_size
+            for c in range(0, chunk_count):
+                self.set_window(x, chunk_y,
+                           x + w - 1, chunk_y + chunk_height - 1,
+                           buf)
+                chunk_y += chunk_height
+
+        if remainder:
+            buf = color.to_bytes(2, 'big') * remainder * w
+            self.set_window(x, chunk_y,
+                       x + w - 1, chunk_y + remainder - 1,
+                       buf)
+
+    def fill_ellipse(self, x0, y0, a, b, color):
+        """Draw a filled ellipse.
+
+        Args:
+            x0, y0 (int): Coordinates of center point.
+            a (int): Semi axis horizontal.
+            b (int): Semi axis vertical.
+            color (int): RGB565 color value.
+        Note:
+            The center point is the center of the x0,y0 pixel.
+            Since pixels are not divisible, the axes are integer rounded
+            up to complete on a full pixel.  Therefore the major and
+            minor axes are increased by 1.
+        """
+        a2 = a * a
+        b2 = b * b
+        twoa2 = a2 + a2
+        twob2 = b2 + b2
+        x = 0
+        y = b
+        px = 0
+        py = twoa2 * y
+        # Plot initial points
+        self.line(x0, y0 - y, x0, y0 + y, color)
+        # Region 1
+        p = round(b2 - (a2 * b) + (0.25 * a2))
+        while px < py:
+            x += 1
+            px += twob2
+            if p < 0:
+                p += b2 + px
+            else:
+                y -= 1
+                py -= twoa2
+                p += b2 + px - py
+            self.line(x0 + x, y0 - y, x0 + x, y0 + y, color)
+            self.line(x0 - x, y0 - y, x0 - x, y0 + y, color)
+        # Region 2
+        p = round(b2 * (x + 0.5) * (x + 0.5) +
+                  a2 * (y - 1) * (y - 1) - a2 * b2)
+        while y > 0:
+            y -= 1
+            py -= twoa2
+            if p > 0:
+                p += a2 - py
+            else:
+                x += 1
+                px += twob2
+                p += a2 - py + px
+            self.line(x0 + x, y0 - y, x0 + x, y0 + y, color)
+            self.line(x0 - x, y0 - y, x0 - x, y0 + y, color)
+
+
+    def text(self, aPos, aString, aColor, aFont, aSize = 1, nowrap = False):
+
+        if aFont == None:
+          return
+
+        #Make a size either from single value or 2 elements.
+        if (type(aSize) == int) or (type(aSize) == float):
+          wh = (aSize, aSize)
+        else:
+          wh = aSize
+
+        px, py = aPos
+        width = wh[0] * aFont["Width"] + 1
+        for c in aString:
+          self.char((px, py), c, aColor, aFont, wh)
+          px += width
+          #We check > rather than >= to let the right (blank) edge of the
+          # character print off the right of the screen.
+          if px + width > self.width:
+            if nowrap:
+              break
+            else:
+              py += aFont["Height"] * wh[1] + 1
+              px = aPos[0]
+
+
+    def char(self, aPos, aChar, aColor, aFont, aSizes):
+
+        if aFont == None:
+          return
+
+        startchar = aFont['Start']
+        endchar = aFont['End']
+
+        ci = ord(aChar)
+        if (startchar <= ci <= endchar):
+          fontw = aFont['Width']
+          fonth = aFont['Height']
+          ci = (ci - startchar) * fontw
+
+          charA = aFont["Data"][ci:ci + fontw]
+          px = aPos[0]
+          if aSizes[0] <= 1 and aSizes[1] <= 1 :
+            buf = bytearray(2 * fonth * fontw)
+            for q in range(fontw) :
+              c = charA[q]
+              for r in range(fonth) :
+                if c & 0x01 :
+                  pos = 2 * (r * fontw + q)
+                  buf[pos] = aColor >> 8
+                  buf[pos + 1] = aColor & 0xff
+                c >>= 1
+            self.set_window(aPos[0], aPos[1], aPos[0] + fontw - 1, aPos[1] + fonth - 1, buf)
+          else:
+            for c in charA :
+              py = aPos[1]
+              for r in range(fonth) :
+                if c & 0x01 :
+                  self.fill_rect(px, py, aSizes[0], aSizes[1], aColor)
+                py += aSizes[1]
+                c >>= 1
+              px += aSizes[0]

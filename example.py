@@ -3,6 +3,8 @@ import random
 import st7789
 import time
 from machine import Pin, SPI
+import math
+from sysfont import sysfont
 
 BL_Pin = 4     #backlight pin
 SCLK_Pin = 18  #clock pin
@@ -154,5 +156,34 @@ def main():
     display.ellipse(96, 96, 16, 30, st7789.color565(255, 255, 0))
 
 
+    display.fill(0);
+    v = 30
+    display.text((0, v), "Hello World!", st7789.color565(255, 0, 0), sysfont, 1, nowrap=True)
+    v += sysfont["Height"]
+    display.text((0, v), "Hello World!", st7789.color565(0, 255, 0), sysfont, 2, nowrap=True)
+    v += sysfont["Height"] * 2
+    display.text((0, v), "Hello World!", st7789.color565(0, 0, 255), sysfont, 3, nowrap=True)
+    v += sysfont["Height"] * 3
+    display.text((0, v), str(1234.567), st7789.color565(255, 255, 0), sysfont, 4, nowrap=True)
+    time.sleep_ms(1500)
+    display.fill(0);
+    v = 0
+    display.text((0, v), "Hello World!", st7789.color565(255, 0, 0), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), str(math.pi), st7789.color565(0, 255, 0), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), " Want pi?", st7789.color565(0, 0, 255), sysfont)
+    v += sysfont["Height"] * 2
+    display.text((0, v), hex(8675309), st7789.color565(255, 255, 0), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), " Print HEX!", st7789.color565(255, 0, 255, sysfont))
+    v += sysfont["Height"] * 2
+    display.text((0, v), "Sketch has been", st7789.color565(255, 255, 255), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), "running for: ", st7789.color565(255, 255, 255), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), str(time.ticks_ms() / 1000), st7789.color565(255, 255, 255), sysfont)
+    v += sysfont["Height"]
+    display.text((0, v), " seconds.", st7789.color565(255, 255, 255), sysfont)
 
 main()
