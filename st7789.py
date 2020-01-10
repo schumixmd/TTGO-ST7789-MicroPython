@@ -1035,3 +1035,65 @@ class ST7789(object):
                 py += aSizes[1]
                 c >>= 1
               px += aSizes[0]
+
+    def draw_image(self, path, x=0, y=0, w=128, h=128):
+        """Draw image from flash.
+
+        Args:
+            path (string): Image file path.
+            x (int): X coordinate of image left.  Default is 0.
+            y (int): Y coordinate of image top.  Default is 0.
+            w (int): Width of image.  Default is 128.
+            h (int): Height of image.  Default is 128.
+        """
+        x2 = x + w - 1
+        y2 = y + h - 1
+        if self.is_off_grid(x, y, x2, y2):
+            return
+        with open(path, "rb") as f:
+            chunk_height = 1024 // w
+            chunk_count, remainder = divmod(h, chunk_height)
+            chunk_size = chunk_height * w * 2
+            chunk_y = y
+            if chunk_count:
+                for c in range(0, chunk_count):
+                    buf = f.read(chunk_size)
+                    self.set_window(x, chunk_y,
+                               x2, chunk_y + chunk_height - 1,
+                               buf)
+                    chunk_y += chunk_height
+            if remainder:
+                buf = f.read(remainder * w * 2)
+                self.set_window(x, chunk_y,
+                           x2, chunk_y + remainder - 1,
+                           buf)
+
+    def draw_sprite(self, buf, x, y, w, h):
+        """Draw a sprite (optimized for horizontal drawing).
+
+        Args:
+            buf (bytearray): Buffer to draw.
+            x (int): Starting X position.
+            y (int): Starting Y position.
+            w (int): Width of drawing.
+            h (int): Height of drawing.
+        """
+        x2 = x + w - 1
+        y2 = y + h - 1
+        if self.is_off_grid(x, y, x2, y2):
+            return
+        self.set_window(x, y, x2, y2, buf)
+
+    def load_sprite(self, path, w, h):
+        """Load sprite image.
+
+        Args:
+            path (string): Image file path.
+            w (int): Width of image.
+            h (int): Height of image.
+        Notes:
+            w x h cannot exceed 2048
+        """
+        buf_size = w * h * 2
+        with open(path, "rb") as f:
+            return f.read(buf_size)
