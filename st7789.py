@@ -1,3 +1,11 @@
+'''MicroPython Library for ESP32-TTGO-ST7789 Display. Credits: schumixmd
+   The library is a mix of multiple functions collected from other libraries.
+   Needs a lot of cleanup, but is fully functional, except the Fonts part.
+    https://github.com/devbis/st7789py_mpy <-- display initialization
+    https://github.com/lewisxhe/mPython_ST7789 <-- basis of this library
+    https://github.com/rdagger/micropython-ssd1351 <-- most of the functions including Fonts
+    https://github.com/boochow/MicroPython-ST7735 <-- for text using the font sysfont
+'''
 import time
 import ustruct as struct
 import framebuf
