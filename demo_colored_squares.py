@@ -1,6 +1,6 @@
 from time import sleep
 from st7789 import ST7789, color565
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 import random
 
 
@@ -13,7 +13,7 @@ def test():
     """Test code."""
     # Baud rate of 14500000 seems about the max
     blk = Pin(4, Pin.OUT)
-    spi = SPI(baudrate=40000000, miso=Pin(2), mosi=Pin(19, Pin.OUT), sck=Pin(18, Pin.OUT))
+    spi = SoftSPI(baudrate=500000, polarity=1, phase=0, sck=Pin(SCLK_Pin), mosi=Pin(MOSI_Pin), miso=Pin(MISO_Pin))
     display = ST7789(spi, 135, 240, cs=Pin(5), dc=Pin(16), rst=None)
     blk.value(1)
 

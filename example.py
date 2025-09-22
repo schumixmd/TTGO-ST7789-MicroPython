@@ -2,7 +2,7 @@
 import random #for random number generation (like random color)
 import st7789 #for display
 import time #mostly fro sleep
-from machine import Pin, SPI # for display and buttons
+from machine import Pin, SoftSPI # for display and buttons
 import math #math for pi value
 from sysfont import sysfont #sysfont for drawing text
 
@@ -31,7 +31,7 @@ button1.irq(trigger=Pin.IRQ_FALLING, handler=callback_b1) #interrupt for right b
 button2.irq(trigger=Pin.IRQ_FALLING, handler=callback_b2) #interrupt for left button (button 1)
 
 BLK = Pin(BL_Pin, Pin.OUT)
-spi = SPI(baudrate=40000000, miso=Pin(MISO_Pin), mosi=Pin(MOSI_Pin, Pin.OUT), sck=Pin(SCLK_Pin, Pin.OUT))
+spi = SoftSPI(baudrate=500000, polarity=1, phase=0, sck=Pin(SCLK_Pin), mosi=Pin(MOSI_Pin), miso=Pin(MISO_Pin))
 display = st7789.ST7789(spi, 135, 240, cs=Pin(CS_Pin), dc=Pin(DC_Pin), rst=None)
 
 def clear_screen():
