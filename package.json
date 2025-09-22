@@ -1,0 +1,9 @@
+{
+  "urls": [
+    ["st7789.py", "github:schumixmd/TTGO-ST7789-MicroPython/st7789.py"],
+    ["sysfont.py", "github:schumixmd/TTGO-ST7789-MicroPython/sysfont.py"],
+    ["xglcd_font.py", "github:schumixmd/TTGO-ST7789-MicroPython/xglcd_font.py"]
+  ],
+  "version": "1.0.0",
+  "deps": []
+}
