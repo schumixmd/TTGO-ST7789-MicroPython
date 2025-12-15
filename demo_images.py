@@ -1,6 +1,6 @@
 from time import sleep
 from st7789 import ST7789
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 
 BL_Pin = 4     #backlight pin
 SCLK_Pin = 18  #clock pin

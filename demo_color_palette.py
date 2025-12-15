@@ -1,6 +1,6 @@
 from time import sleep
 from st7789 import ST7789, color565
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 
 BL_Pin = 4     #backlight pin
 SCLK_Pin = 18  #clock pin
@@ -51,7 +51,7 @@ def test():
     """Test code."""
     # Baud rate of 14500000 seems about the max
     BLK = Pin(BL_Pin, Pin.OUT)
-    spi = SPI(baudrate=40000000, miso=Pin(MISO_Pin), mosi=Pin(MOSI_Pin, Pin.OUT), sck=Pin(SCLK_Pin, Pin.OUT))
+    spi = SoftSPI(baudrate=500000, polarity=1, phase=0, sck=Pin(SCLK_Pin), mosi=Pin(MOSI_Pin), miso=Pin(MISO_Pin))
     display = ST7789(spi, 135, 240, cs=Pin(CS_Pin), dc=Pin(DC_Pin), rst=None)
     BLK.value(1)
 

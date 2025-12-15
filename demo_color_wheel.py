@@ -1,7 +1,7 @@
 
 from time import sleep
 from st7789 import ST7789, color565
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 from math import cos, pi, sin
 
 HALF_WIDTH = const(65)
@@ -66,7 +66,7 @@ def test():
     button2 = Pin(Button2_Pin, Pin.IN, Pin.PULL_UP)
 
     BLK = Pin(BL_Pin, Pin.OUT)
-    spi = SPI(baudrate=40000000, miso=Pin(MISO_Pin), mosi=Pin(MOSI_Pin, Pin.OUT), sck=Pin(SCLK_Pin, Pin.OUT))
+    spi = SoftSPI(baudrate=500000, polarity=1, phase=0, sck=Pin(SCLK_Pin), mosi=Pin(MOSI_Pin), miso=Pin(MISO_Pin))
     display = ST7789(spi, 135, 240, cs=Pin(CS_Pin), dc=Pin(DC_Pin), rst=None)
     display.fill(0)
 
